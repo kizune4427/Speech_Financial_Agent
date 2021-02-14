@@ -19,20 +19,58 @@ from transformers import (
 
 DEVICE = torch.device('cpu')
 
+# model definition
+n_classes = 5
+
+
+class ID_module(nn.Module):
+    """Intent detection module."""
+
+    def __init__(self):
+        super(ID_module, self).__init__()
+        self.linear = nn.Linear(768, 2)
+
+    def forward(self, X):
+        X = self.linear(X)
+        return X
+
+
+class SF_module(nn.Module):
+    """Slot filling module."""
+
+    def __init__(self):
+        super(SF_module, self).__init__()
+        self.linear = nn.Linear(768, n_classes)
+
+    def forward(self, X):
+        X = self.linear(X)
+        return X
+
+
 # load bert model
 tokenizer = BertTokenizerFast.from_pretrained('bert-base-chinese')
 bert_model = AutoModelForMaskedLM.from_pretrained(
     'ckiplab/bert-base-chinese', output_hidden_states=True).to(DEVICE)
 
 # load model for intent detection
-ID_model_path = "model\\ID_model"
+ID_model_path = "model/ID_model"
 # load model
-ID_classifier = ID_module().to(DEVICE)
-ID_classifier.load_state_dict(torch.load(ID_model_path))
+ID_model = ID_module().to(DEVICE)
+ID_model.load_state_dict(torch.load(ID_model_path))
 
 # load model for slot filling
-SF_model_path = "C:\\Users\\leosh\\OneDrive\\Desktop\\weights-improvement-19.hdf5"
-SF_model = keras.models.load_model(SF_model_path)
+SF_BiLSTM_model_path = "model/weights-improvement-19.hdf5"
+SF_MLP_model_path = "model/SF_model"
+
+
+def get_SF_model(model_type):
+    """Returns a slot filling model of either using BiLSTM or MLP method."""
+    if model_type == "BiLSTM":
+        return keras.models.load_model(SF_BiLSTM_model_path)
+    elif model_type == "MLP":
+        SF_model = SF_module().to(DEVICE)
+        SF_model.load_state_dict(torch.load(SF_MLP_model_path))
+        return SF_model
 
 
 def get_representation(output):
@@ -52,14 +90,31 @@ def get_representation(output):
     return hidden_states
 
 
-def get_intent(sentence, ID_model):
-    # predict by ID_model
+def get_intent(sentence):
+    """Returns the intent (income/expense) of the given sentence."""
+
+    X = " ".join(sentence)
+    X_encoding = tokenizer.encode_plus(
+        X, add_special_tokens=True, return_tensors='pt')
+    X_ids = X_encoding['input_ids'].to(DEVICE)
+
+    with torch.no_grad():
+        output = bert_model(X_ids)
+
+    ID_model.eval()
+    ID_input = get_representation(output)[0]
+    ID_output = ID_model(ID_input)
+    result = torch.argmax(ID_output).item()
+
+    return result
 
 
-def predict_sf(X, SF_model):
-    """Predict slots with ckip bert representation and BiLSTM."""
+def predict_sf(sentence, model_type="MLP"):
+    """Predict the slots with ckip bert representation and SF_model.\n
+    model_type: BiLSTM, MLP
+    """
 
-    X = " ".join(X)
+    X = " ".join(sentence)
     X_encoding = tokenizer.encode_plus(
         X, add_special_tokens=True, return_tensors='pt')
     X_ids = X_encoding['input_ids'].to(DEVICE)
@@ -67,13 +122,30 @@ def predict_sf(X, SF_model):
         output = bert_model(X_ids)
 
     # get the 768-d representation of tokens except [CLS] and [SEP]
-    LSTM_input = get_representation(output)[1:-1]
-    LSTM_input = [np.array(i) for i in LSTM_input]
-    tt = []
-    tt.append(np.array(LSTM_input))
-    output_label = SF_model.predict_classes(np.array(tt))
+    SF_input = get_representation(output)[1:-1]
+    y_pred = []
 
-    return output_label[0]
+    SF_model = None
+    if model_type == "BiLSTM":
+        SF_model = get_SF_model("BiLSTM")
+
+        LSTM_input = [np.array(i) for i in SF_input]
+        y_pred.append(np.array(LSTM_input))
+        y_pred = SF_model.predict_classes(np.array(y_pred))
+        return y_pred[0]
+
+    elif model_type == "MLP":
+        SF_model = get_SF_model("MLP")
+        SF_model.eval()
+
+        for p in range(len(X_ids[0]) - 2):
+            SF_output = SF_model(SF_input[p]).unsqueeze(0)
+            y_pred.append(torch.argmax(SF_output).item())
+
+        return y_pred
+    else:
+        print("Model type not supported!")
+        print('Please choose from either "BiLSTM" or "MLP"')
 
 
 def extract(intent, SF_list, sentence):

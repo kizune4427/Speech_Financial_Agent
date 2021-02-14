@@ -6,7 +6,7 @@ import speech_recognition as sr
 import pyaudio
 
 
-def Voice_To_Text():
+def speech_to_text():
     final_text = []
     r = sr.Recognizer()
     with sr.Microphone() as source:
@@ -34,8 +34,7 @@ def Voice_To_Text():
 def confirm():
     sen = entryVariable.get()
     print(sen)
-    slots = predict_sf(
-        sen, "C:\\Users\\leosh\\OneDrive\\Desktop\\weights-improvement-19.hdf5")
+    slots = predict_sf(sen, model_type="MLP")
     intent = get_intent(sen)
 
     item, money = extract(intent, slots, sen)
@@ -54,7 +53,7 @@ window = Tk()
 window.geometry("350x200")
 
 label1 = Label(window, text='')
-btn_mic = Button(window, text="麥克風", bg="yellow", command=Voice_To_Text)
+btn_mic = Button(window, text="麥克風", bg="yellow", command=speech_to_text)
 entryVariable = Entry(window, text="這是文字方塊", width=30)
 btn_confirm = Button(window, text="確定", bg="yellow", command=confirm)
 label2 = Label(window, text='項目')
