@@ -19,14 +19,20 @@ from transformers import (
 
 DEVICE = torch.device('cpu')
 
-# load bert model for intent detection
+# load bert model
 tokenizer = BertTokenizerFast.from_pretrained('bert-base-chinese')
 bert_model = AutoModelForMaskedLM.from_pretrained(
     'ckiplab/bert-base-chinese', output_hidden_states=True).to(DEVICE)
 
+# load model for intent detection
+ID_model_path = "model\\ID_model"
+# load model
+ID_classifier = ID_module().to(DEVICE)
+ID_classifier.load_state_dict(torch.load(ID_model_path))
+
 # load model for slot filling
-sf_model_path = "C:\\Users\\leosh\\OneDrive\\Desktop\\weights-improvement-19.hdf5"
-sf_model = keras.models.load_model(sf_model_path)
+SF_model_path = "C:\\Users\\leosh\\OneDrive\\Desktop\\weights-improvement-19.hdf5"
+SF_model = keras.models.load_model(SF_model_path)
 
 
 def get_representation(output):
@@ -46,7 +52,11 @@ def get_representation(output):
     return hidden_states
 
 
-def predict_sf(X, sf_model):
+def get_intent(sentence, ID_model):
+    # predict by ID_model
+
+
+def predict_sf(X, SF_model):
     """Predict slots with ckip bert representation and BiLSTM."""
 
     X = " ".join(X)
@@ -61,12 +71,12 @@ def predict_sf(X, sf_model):
     LSTM_input = [np.array(i) for i in LSTM_input]
     tt = []
     tt.append(np.array(LSTM_input))
-    output_label = sf_model.predict_classes(np.array(tt))
+    output_label = SF_model.predict_classes(np.array(tt))
 
     return output_label[0]
 
 
-def extract(intent, sf_list, sentence):
+def extract(intent, SF_list, sentence):
     """Extract the money amount and item from the input sentence."""
 
     sen = "".join(sentence.split())
@@ -77,7 +87,7 @@ def extract(intent, sf_list, sentence):
     money_start_idx = 0
     money_end_idx = 0
 
-    for i, s in enumerate(sf_list):
+    for i, s in enumerate(SF_list):
         if (s == 2) or (s == 3):
             item += sen[i]
 

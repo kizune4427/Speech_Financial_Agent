@@ -24,7 +24,7 @@ def Voice_To_Text():
     except sr.RequestError as e:
         input_text = "無法翻譯{0}".format(e)
 
-    final_text.extend(list(Text))  # output sentence list
+    final_text.extend(list(input_text))  # output sentence list
     entryVariable.insert(0, final_text)
     label1.config(text='')
     print(final_text)
