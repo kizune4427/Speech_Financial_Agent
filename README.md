@@ -6,6 +6,6 @@
 #### Note: BiLSTM for slot filling is not as stable.
 #### Please build the environment with requirements.txt
 
-Example speech input: 昨天吃牛排花了300塊
-Example output item: 牛排
-Example output money amount: -300
+Example speech input: 昨天吃牛排花了300塊<br>
+Example output item: 牛排<br>
+Example output money amount: -300<br>
