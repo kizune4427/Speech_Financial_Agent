@@ -59,7 +59,7 @@ ID_model = ID_module().to(DEVICE)
 ID_model.load_state_dict(torch.load(ID_model_path))
 
 # load model for slot filling
-SF_BiLSTM_model_path = "model/weights-improvement-19.hdf5"
+SF_BiLSTM_model_path = "model/SF_BiLSTM.hdf5"
 SF_MLP_model_path = "model/SF_model"
 
 
@@ -106,7 +106,10 @@ def get_intent(sentence):
     ID_output = ID_model(ID_input)
     result = torch.argmax(ID_output).item()
 
-    return result
+    if result == 0:
+        return "+"
+    if result == 1:
+        return "-"
 
 
 def predict_sf(sentence, model_type="MLP"):
@@ -131,8 +134,9 @@ def predict_sf(sentence, model_type="MLP"):
 
         LSTM_input = [np.array(i) for i in SF_input]
         y_pred.append(np.array(LSTM_input))
-        y_pred = SF_model.predict_classes(np.array(y_pred))
-        return y_pred[0]
+        y_pred = SF_model.predict_classes(np.array(y_pred))[0]
+        y_pred = [y-1 for y in y_pred]
+        return y_pred
 
     elif model_type == "MLP":
         SF_model = get_SF_model("MLP")
@@ -160,12 +164,12 @@ def extract(intent, SF_list, sentence):
     money_end_idx = 0
 
     for i, s in enumerate(SF_list):
-        if (s == 2) or (s == 3):
+        if (s == 1) or (s == 2):
             item += sen[i]
 
-        if (s == 4):
+        if (s == 3):
             money_start_idx = i
-        if (s == 5 and sen[i].isdigit()):
+        if (s == 4 and sen[i].isdigit()):
             money_end_idx = i
 
     if money_start_idx and money_end_idx:

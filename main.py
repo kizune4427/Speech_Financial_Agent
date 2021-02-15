@@ -50,7 +50,7 @@ def clean():
 
 
 window = Tk()
-window.geometry("350x200")
+window.geometry("350x350")
 
 label1 = Label(window, text='')
 btn_mic = Button(window, text="麥克風", bg="yellow", command=speech_to_text)
@@ -73,5 +73,4 @@ label3.grid(row=3, column=2)
 label_item.grid(row=4, column=0)
 label_money.grid(row=4, column=2)
 btn3.grid(row=1, column=3)
-# window.maxsize(400,400) #int
 window.mainloop()
